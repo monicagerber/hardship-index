@@ -48,6 +48,7 @@ ui <- fluidPage(
         p("This Shiny app is still under development. Monica Gerber conducted the analysis and
           developed the app."),
         p("Please contact Monica Gerber with any questions or comments (mwgerber@mgh.harvard.edu)."),
+        p("Code is available on Github: https://github.com/monicagerber/hardship-index")
         width = 3),
         mainPanel(
             tabsetPanel(type = "tabs",

@@ -5,3 +5,4 @@
 *.xlsx
 data-shapefiles/*
 rsconnect/*
+zipcode_data/*
