@@ -76,6 +76,17 @@ crw_dat <- read_csv("data-raw/ACS_15_5YR_B25014_crowding/ACS_15_5YR_B25014.csv")
            GEO.id2 = as.character(GEO.id2)) %>%
     select(GEO.id2, total_gte1, total_gte1_pct)
 
+# race/ethnicity
+eth_dat <- read_csv("data-raw/ACS_15_5YR_B03002_race_eth/ACS_15_5YR_B03002.csv") %>%
+    mutate(white = round((HD01_VD03/HD01_VD01)*100, 1),
+           black =  round((HD01_VD04/HD01_VD01)*100, 1),
+           hispanic =  round((HD01_VD12/HD01_VD01)*100, 1),
+           american_indian =  round((HD01_VD05/HD01_VD01)*100, 1),
+           asian_nhpi =  round(((HD01_VD06 + HD01_VD07)/HD01_VD01)*100, 1), 
+           other =  round((HD01_VD08/HD01_VD01)*100, 1),
+           biracial =  round((HD01_VD09/HD01_VD01)*100, 1),
+           GEO.id2 = as.character(GEO.id2)) %>%
+    select(GEO.id2, white:biracial)
 
 
 # all stats
@@ -85,6 +96,7 @@ acs_15_5yr <- full_join(inc_dat, edu_dat, by = "GEO.id2") %>%
     full_join(pov_dat, by = "GEO.id2") %>%
     full_join(pop_dat, by = "GEO.id2") %>%
     full_join(crw_dat, by = "GEO.id2") %>%
+    full_join(eth_dat, by = "GEO.id2") %>%
     filter(include == 1) %>% 
     mutate(min_inc = min(income_est, na.rm = TRUE),
            max_inc = max(income_est, na.rm = TRUE),
@@ -105,27 +117,26 @@ acs_15_5yr <- full_join(inc_dat, edu_dat, by = "GEO.id2") %>%
            stan_age = (age_under18_over65 - min_age)/(max_age - min_age)*100,
            stan_pov = (pov_est - min_pov)/(max_pov - min_pov)*100,
            stan_crw = (total_gte1_pct - min_crw)/(max_crw - min_crw)*100,
-           hardship_index = (stan_inc + stan_edu + stan_emp + stan_age + stan_pov + stan_crw)/6) %>%
+           hardship_index_notscaled = (stan_inc + stan_edu + stan_emp + stan_age + stan_pov + stan_crw)/6) %>%
     ungroup() %>%
-    arrange(hardship_index) %>%
-    filter(!is.na(hardship_index)) %>%
-    mutate(ranking = row_number(),
-           ma_percentile = round((ranking/max(ranking))*100, 0))
+    arrange(hardship_index_notscaled) %>%
+    filter(!is.na(hardship_index_notscaled)) %>%
+    mutate(hardship_index_scaled = scales::rescale(hardship_index_notscaled, to = c(0,100)),
+           hardship_index = percent_rank(hardship_index_scaled))
 
 displaytable <- acs_15_5yr %>%
     separate(geo_display, sep = ",", into = c("census_tract", "county", "state")) %>%
     mutate(census_tract = parse_number(census_tract)) %>%
     select(census_tract,
            county,
-           pop_total,
-           percapita_income = income_est,
-           percent_not_hs_grad = nothsgrad,
-           percent_unemployed = unemploy_est,
-           percent_dependent = age_under18_over65,
-           percent_poverty = pov_est,
-           percent_crowding = total_gte1_pct,
            hardship_index,
-           ma_percentile) %>%
+           `Population Total` = pop_total,
+           `Per capita income` = income_est,
+           `Percent aged 25+ without a high school diploma` = nothsgrad,
+           `Percent aged 16+ unemployed` = unemploy_est,
+           `Percent aged under 18 or over 64` = age_under18_over65,
+           `Percent households below poverty` = pov_est,
+           `Percent crowding` = total_gte1_pct) %>%
     mutate(community = case_when(
         .$census_tract %in% c(1606.02, 1606.01, 1605.02, 1605.01, 1604, 1601.01, 1602, 1603) ~ "Chelsea",
         .$census_tract %in% c(1011.01, 1011.02, 1010.02, 1009, 1010.01) ~ "Mattapan",
@@ -152,18 +163,29 @@ displaytable <- acs_15_5yr %>%
         .$census_tract %in% c(203.03, 303, 701.01, 702) ~ "Downtown/Chinatown/LeatherDistrict",
         .$census_tract %in% c(707, 703, 704.02, 705, 706, 708, 709, 711.01, 712.01) ~ "South End",
         .$census_tract %in% c(805, 806.01, 804.01, 801, 803, 906, 814, 817, 818, 904,
-                              813, 815, 819, 820, 821) ~ "Roxbury"))
+                              813, 815, 819, 820, 821) ~ "Roxbury"),
+        hardship_index = round(hardship_index, 2))
 
 displaytable <- as.data.frame(displaytable)
 
-rm(age_dat, edu_dat, emp_dat, inc_dat, pop_dat, pov_dat, crw_dat)
+rm(age_dat, edu_dat, emp_dat, inc_dat, pop_dat, pov_dat, crw_dat, eth_dat)
+
+acs_15_5yr <- rename(acs_15_5yr, GEOID = GEO.id2)
+tracts <- readOGR(dsn = "data-shapefiles/tl_2015_25_tract/tl_2015_25_tract.shp")
+sp_data <- sp::merge(tracts, acs_15_5yr, by = "GEOID")
+
+rm(tracts, acs_15_5yr)
 
 save.image(file = "data-derived/acs_15_5yr_hardship.RData")
 
-rm(acs_15_5yr, displaytable)
+rm(sp_data, displaytable)
+
+
+
+
 
 # DATA by Zip Code ---------------------------------------------------------------------------------
-
+## not used in Shniy APP
 
 
 # income
