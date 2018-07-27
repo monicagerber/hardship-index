@@ -16,10 +16,10 @@ mytable <- displaytable %>%
     group_by(community) %>%
     summarise_at(vars(percapita_income, percent_not_hs_grad, percent_unemployed,
                       percent_dependent, percent_poverty, percent_crowding,
-                      hardship_index, ma_percentile), funs(mean, sd)) %>%
+                      hardship_index_rawscore, hardship_index), funs(mean, sd)) %>%
     left_join(sample_size, by = "community") %>%
-    select(community, n, pop, hardship_index_mean, hardship_index_sd,
-           ma_percentile_mean, ma_percentile_sd,
+    select(community, n, pop, hardship_index_rawscore_mean, hardship_index_rawscore_sd,
+           hardship_index_mean, hardship_index_sd,
            percapita_income_mean, percapita_income_sd,
            percent_not_hs_grad_mean, percent_not_hs_grad_sd,
            percent_unemployed_mean, percent_unemployed_sd,

@@ -117,12 +117,12 @@ acs_15_5yr <- full_join(inc_dat, edu_dat, by = "GEO.id2") %>%
            stan_age = (age_under18_over65 - min_age)/(max_age - min_age)*100,
            stan_pov = (pov_est - min_pov)/(max_pov - min_pov)*100,
            stan_crw = (total_gte1_pct - min_crw)/(max_crw - min_crw)*100,
-           hardship_index_notscaled = (stan_inc + stan_edu + stan_emp + stan_age + stan_pov + stan_crw)/6) %>%
+           hardship_index_rawscore = (stan_inc + stan_edu + stan_emp + stan_age + stan_pov + stan_crw)/6) %>%
     ungroup() %>%
-    arrange(hardship_index_notscaled) %>%
-    filter(!is.na(hardship_index_notscaled)) %>%
-    mutate(hardship_index_scaled = scales::rescale(hardship_index_notscaled, to = c(0,100)),
-           hardship_index = percent_rank(hardship_index_scaled))
+    arrange(hardship_index_rawscore) %>%
+    filter(!is.na(hardship_index_rawscore)) %>%
+    mutate(hardship_index_scaled = scales::rescale(hardship_index_rawscore, to = c(0,100)),
+           hardship_index = percent_rank(hardship_index_scaled)*100)
 
 displaytable <- acs_15_5yr %>%
     separate(geo_display, sep = ",", into = c("census_tract", "county", "state")) %>%
@@ -130,40 +130,54 @@ displaytable <- acs_15_5yr %>%
     select(census_tract,
            county,
            hardship_index,
-           `Population Total` = pop_total,
-           `Per capita income` = income_est,
-           `Percent aged 25+ without a high school diploma` = nothsgrad,
-           `Percent aged 16+ unemployed` = unemploy_est,
-           `Percent aged under 18 or over 64` = age_under18_over65,
-           `Percent households below poverty` = pov_est,
-           `Percent crowding` = total_gte1_pct) %>%
+           hardship_index_rawscore,
+           pop_total,
+           percapita_income = income_est,
+           percent_not_hs_grad = nothsgrad,
+           percent_unemployed = unemploy_est,
+           percent_dependent  = age_under18_over65,
+           percent_poverty = pov_est,
+           percent_crowding = total_gte1_pct) %>%
     mutate(community = case_when(
-        .$census_tract %in% c(1606.02, 1606.01, 1605.02, 1605.01, 1604, 1601.01, 1602, 1603) ~ "Chelsea",
-        .$census_tract %in% c(1011.01, 1011.02, 1010.02, 1009, 1010.01) ~ "Mattapan",
-        .$census_tract %in% c(907, 913, 912, 911, 910.01, 909.01, 914, 915, 903, 918, 917, 916, 
+        census_tract %in% c(1606.02, 1606.01, 1605.02, 1605.01, 1604, 1601.01, 1602, 1603) ~ "Chelsea",
+        census_tract %in% c(1011.01, 1011.02, 1010.02, 1009, 1010.01) ~ "Mattapan",
+        census_tract %in% c(907, 913, 912, 911, 910.01, 909.01, 914, 915, 903, 918, 917, 916, 
                               901, 902, 919, 920, 911.01, 924, 923, 922, 1001, 1005,
                               1002, 1003, 1004, 1006.01, 1006,03, 1008, 1007) ~ "Dorchester",
-        .$census_tract %in% c(108.02, 108.01, 107.01, 107.02, 105, 106) ~ "Back Bay",
-        .$census_tract %in% c(202, 201.01, 203.02, 9817) ~ "Beacon Hill",
-        .$census_tract %in% c(1301, 1302, 1106.01, 1303, 1304.02, 1304.04, 1304.06) ~ "West Roxbury",
-        .$census_tract %in% c(406, 403, 402, 408.01, 404.01, 401, 404.01) ~ "Charlestown",
-        .$census_tract %in% c(501.01, 509.01, 510, 511.01, 502, 507, 503, 506, 505, 504, 512) ~ "East Boston",
-        .$census_tract %in% c(1703, 1704, 1705.02, 1705.01, 1702, 1701, 1706.01, 1707.02, 
+        census_tract %in% c(108.02, 108.01, 107.01, 107.02, 105, 106) ~ "Back Bay",
+        census_tract %in% c(202, 201.01, 203.02, 9817) ~ "Beacon Hill",
+        census_tract %in% c(1301, 1302, 1106.01, 1303, 1304.02, 1304.04, 1304.06) ~ "West Roxbury",
+        census_tract %in% c(406, 403, 402, 408.01, 404.01, 401, 404.01) ~ "Charlestown",
+        census_tract %in% c(501.01, 509.01, 510, 511.01, 502, 507, 503, 506, 505, 504, 512) ~ "East Boston",
+        census_tract %in% c(1703, 1704, 1705.02, 1705.01, 1702, 1701, 1706.01, 1707.02, 
                               1707.01, 1708) ~ "Revere",
-        .$census_tract %in% c(3543, 3546, 3549, 3550, 3548, 3544, 3542, 3545, 3547, 3541, 3540, 
+        census_tract %in% c(3543, 3546, 3549, 3550, 3548, 3544, 3542, 3545, 3547, 3541, 3540, 
                               3536, 3539, 3537, 3535, 3538, 3529, 3534, 3530, 3528, 3527, 3533, 
                               3532, 3531.01, 3525, 3531.02, 3524, 3526, 3523, 3522, 3521.02, 
                               3521.01) ~ "Cambridge",
-        .$census_tract %in% c(3507, 3508, 3505, 3506, 3509, 3504, 3510, 3503, 3512.04, 
+        census_tract %in% c(3507, 3508, 3505, 3506, 3509, 3504, 3510, 3503, 3512.04, 
                               3511, 3502, 3501.04, 3512.03, 3513, 3514.04, 3501.03, 3515, 
                               3514.03) ~ "Somerville",
-        .$census_tract %in% c(612, 607, 608, 611.01, 610, 605.01, 604, 603.01, 605.01, 602, 
+        census_tract %in% c(612, 607, 608, 611.01, 610, 605.01, 604, 603.01, 605.01, 602, 
                               601.01) ~ "South Boston",
-        .$census_tract %in% c(301, 302, 304, 305) ~ "North End",
-        .$census_tract %in% c(203.03, 303, 701.01, 702) ~ "Downtown/Chinatown/LeatherDistrict",
-        .$census_tract %in% c(707, 703, 704.02, 705, 706, 708, 709, 711.01, 712.01) ~ "South End",
-        .$census_tract %in% c(805, 806.01, 804.01, 801, 803, 906, 814, 817, 818, 904,
-                              813, 815, 819, 820, 821) ~ "Roxbury"),
+        census_tract %in% c(301, 302, 304, 305) ~ "North End",
+        census_tract %in% c(203.03, 303, 701.01, 702) ~ "Downtown/Chinatown/LeatherDistrict",
+        census_tract %in% c(707, 703, 704.02, 705, 706, 708, 709, 711.01, 712.01) ~ "South End",
+        census_tract %in% c(805, 806.01, 804.01, 801, 803, 906, 814, 817, 818, 904,
+                              813, 815, 819, 820, 821) ~ "Roxbury",
+        census_tract %in% c(8.03, 8.02, 7.04, 7.03) ~ "Allston",
+        census_tract %in% c(1, 3.01, 2.01, 2.02, 6.01, 6.02, 7.01,
+                            3.02, 4.02, 4.01, 5.04, 5.03, 5.02) ~ "Brighton",
+        census_tract %in% c(101.03, 101.04, 102.04, 102.03, 104.08, 
+                            104.03, 104.04, 104.05) ~ "Fenway",
+        census_tract %in% c(103) ~ "LMA",
+        census_tract %in% c(810.01, 809, 808.01, 811) ~ "Mission Hill",
+        census_tract %in% c(203.01) ~ "West End",
+        census_tract %in% c(1207, 812, 9818, 1204, 1206, 1205, 1201.05, 1201.03,
+                            1201.04, 1202.01, 1101.03) ~ "Jamaica Plain",
+        census_tract %in% c(1106.07, 1104.01, 1103.01, 1105.01, 1105.02, 
+                            1401.06, 1104.03, 1102.01) ~ "Roslindale",
+        census_tract %in% c(1401.05, 1404, 1401.07, 1403, 1401.02, 1402.01, 1402.02) ~ "Hyde Park"),
         hardship_index = round(hardship_index, 2))
 
 displaytable <- as.data.frame(displaytable)

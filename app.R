@@ -58,10 +58,10 @@ ui <- fluidPage(
                         tabPanel("Data", 
                                  fluidRow(
                                      column(1,
-                                            numericInput("minScore", "Min score", min=0, max=100, value=0)
+                                            numericInput("minScore", "Min score", min=0, max=1, value=0)
                                      ),
                                      column(1,
-                                            numericInput("maxScore", "Max score", min=0, max=100, value=100)
+                                            numericInput("maxScore", "Max score", min=0, max=1, value=1)
                                      )
                                  ),
                                  hr(),
@@ -210,3 +210,6 @@ output$raceplot <- renderHighchart({
 }    
 
 shinyApp(ui, server)
+
+
+# to deploy: rsconnect::deployApp()
